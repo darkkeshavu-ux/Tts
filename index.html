@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hindi-English TTS Chat</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #10131b; color: #f4f6ff; }
+    main { max-width: 680px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding: 18px; gap: 14px; }
+    header { padding: 10px 2px; }
+    h1 { margin: 0 0 6px; font-size: 1.5rem; }
+    .sub, #status { color: #b5bfd6; font-size: .92rem; }
+    .panel { background: #1a2030; border: 1px solid #30394e; border-radius: 16px; padding: 14px; }
+    label { display: block; font-size: .92rem; margin: 0 0 7px; color: #d9e0f2; }
+    select, textarea, button { width: 100%; border-radius: 12px; border: 1px solid #3b4660; padding: 12px; font: inherit; }
+    select, textarea { color: #f4f6ff; background: #111725; }
+    textarea { min-height: 92px; resize: vertical; }
+    .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { border: 0; background: #7566f5; color: white; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #30394e; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    #messages { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 160px; }
+    .empty { color: #b5bfd6; text-align: center; padding: 26px 8px; }
+    .message { background: #242d41; border: 1px solid #39455f; padding: 12px; border-radius: 14px; overflow-wrap: anywhere; }
+    .message small { display: block; color: #aebbd5; margin-bottom: 5px; }
+    .message p { white-space: pre-wrap; margin: 0 0 10px; }
+    .message button { width: auto; padding: 7px 12px; font-size: .9rem; }
+    footer { color: #aebbd5; font-size: .82rem; line-height: 1.45; padding: 4px 2px 12px; }
+    @media (max-width: 420px) { .settings { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>🤖 Hindi-English TTS Chat</h1>
+      <div class="sub">Type a message, choose a voice style, and make your phone speak.</div>
+    </header>
+
+    <section class="panel">
+      <div class="settings">
+        <div>
+          <label for="voiceStyle">Voice style</label>
+          <select id="voiceStyle">
+            <option value="normal">Normal</option>
+            <option value="robot">Robotic</option>
+          </select>
+        </div>
+        <div>
+          <label for="language">Language</label>
+          <select id="language">
+            <option value="auto">Auto-detect Hindi / English</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="en-IN">English (India)</option>
+            <option value="en-US">English (US)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="messageInput">Your message</label>
+        <textarea id="messageInput" placeholder="Type here… Example: नमस्ते! How are you?"></textarea>
+      </div>
+      <div class="actions">
+        <button id="sendButton">Send & speak</button>
+        <button id="stopButton" class="secondary">Stop speaking</button>
+      </div>
+      <p id="status" role="status" aria-live="polite">Ready. If speech is silent, check your phone's text-to-speech settings.</p>
+    </section>
+
+    <section id="messages" aria-label="Chat messages">
+      <div class="empty" id="emptyState">Your messages will appear here.</div>
+    </section>
+
+    <footer>
+      Free prototype: uses the browser's built-in speech engine. Robotic mode changes pitch and speed; it is a simple effect, not a studio-quality voice changer. Speech voices available depend on your phone and browser.
+    </footer>
+  </main>
+
+  <script>
+    // 1. Find the parts of the page that JavaScript needs to control.
+    const messageInput = document.getElementById("messageInput");
+    const voiceStyle = document.getElementById("voiceStyle");
+    const language = document.getElementById("language");
+    const sendButton = document.getElementById("sendButton");
+    const stopButton = document.getElementById("stopButton");
+    const messages = document.getElementById("messages");
+    const status = document.getElementById("status");
+    const emptyState = document.getElementById("emptyState");
+
+    // 2. Check whether this browser supports speech synthesis.
+    const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+    // 3. Guess the language: Devanagari letters usually mean Hindi; otherwise use Indian English.
+    function detectLanguage(text) {
+      return /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-IN";
+    }
+
+    // 4. Speak text using the selected language and voice style.
+    function speakText(text) {
+      if (!speechSupported) {
+        status.textContent = "Sorry, this browser does not support built-in speech. Try Chrome on Android.";
+        return;
+      }
+
+      // Cancel the previous utterance so messages do not overlap.
+      window.speechSynthesis.cancel();
+
+      // Create a speech request from the text.
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Use the language dropdown unless Auto-detect is selected.
+      utterance.lang = language.value === "auto" ? detectLanguage(text) : language.value;
+
+      // Robotic mode uses a higher pitch and a slightly faster rate.
+      if (voiceStyle.value === "robot") {
+        utterance.pitch = 1.7;
+        utterance.rate = 1.05;
+      } else {
+        utterance.pitch = 1.0;
+        utterance.rate = 0.95;
+      }
+
+      // Show helpful status while the browser speaks.
+      utterance.onstart = () => { status.textContent = "Speaking in " + utterance.lang + "…"; };
+      utterance.onend = () => { status.textContent = "Finished speaking."; };
+      utterance.onerror = () => { status.textContent = "Speech failed. Check installed voices and try again."; };
+
+      // Ask the browser to speak the text.
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // 5. Add a message bubble to the chat history.
+    function addMessage(text) {
+      emptyState?.remove();
+
+      const bubble = document.createElement("article");
+      bubble.className = "message";
+
+      const label = document.createElement("small");
+      label.textContent = "You";
+
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+
+      const playButton = document.createElement("button");
+      playButton.className = "secondary";
+      playButton.textContent = "▶ Speak again";
+      playButton.addEventListener("click", () => speakText(text));
+
+      bubble.append(label, paragraph, playButton);
+      messages.prepend(bubble);
+    }
+
+    // 6. When Send is tapped, save the message on screen and speak it.
+    sendButton.addEventListener("click", () => {
+      const text = messageInput.value.trim();
+
+      if (!text) {
+        status.textContent = "Please type a message first.";
+        return;
+      }
+
+      addMessage(text);
+      speakText(text);
+      messageInput.value = "";
+      messageInput.focus();
+    });
+
+    // 7. Stop any speech that is currently playing.
+    stopButton.addEventListener("click", () => {
+      if (speechSupported) window.speechSynthesis.cancel();
+      status.textContent = "Speech stopped.";
+    });
+
+    // 8. Let Ctrl/Command + Enter send the message when using a keyboard.
+    messageInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        sendButton.click();
+      }
+    });
+
+    // 9. Warn early if speech is not supported.
+    if (!speechSupported) {
+      status.textContent = "Speech is not supported in this browser. Try Chrome on Android.";
+      sendButton.disabled = true;
+    }
+  </script>
+</body>
+</html>
