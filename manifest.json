@@ -1,0 +1,20 @@
+{
+  "name": "VoxGlow AI — Hindi English Voice Chat",
+  "short_name": "VoxGlow",
+  "description": "Your Hindi-English AI voice companion.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090817",
+  "theme_color": "#0b091b",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
